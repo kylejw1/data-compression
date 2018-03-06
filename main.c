@@ -1,23 +1,93 @@
 #include <stdio.h>
+#include <stdint.h>
 
-unsigned long byte_compress(char *data, unsigned long data_length);
+// Gotchas:
+// Output length bigger than input - buffer overflow
+// sorted Linked list for duplicate data?
+// Invalid data
+
+#define REPEAT_FLAG 0x80
+
+uint64_t byte_decompress(uint8_t *data, uint64_t data_length);
+uint64_t byte_compress(uint8_t *data, uint64_t data_length);
+uint8_t count_repeats(uint8_t *data, uint64_t data_length);
+void print_byte_array(uint8_t *data, uint64_t array_length);
 
 int main() 
 {
-	char data[] = { 
+	uint8_t kyle;
+	uint8_t data[] = { 
 		0x03, 0x74, 0x04, 0x04, 0x04, 0x35, 0x35, 0x64,
 		0x64, 0x64, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x56, 0x45, 0x56, 0x56, 0x56, 0x09, 0x09, 0x09 
 	};
-	unsigned long data_length = sizeof(data) / sizeof(data[0]);
+	uint64_t data_length = sizeof(data) / sizeof(data[0]);
 
 	printf("Compressing data of length = %lu\n", data_length);
+	print_byte_array(data, data_length);
 
-	unsigned long new_length = byte_compress(data, data_length);
+	uint64_t new_length = byte_compress(data, data_length);
 
 	printf("New length = %lu\n", new_length);
+	print_byte_array(data, new_length);
 }
 
-unsigned long byte_compress(char *data, unsigned long data_length) {
+uint64_t byte_decompress(uint8_t *data, uint64_t data_length) 
+{
+
+}
+
+uint64_t byte_compress(uint8_t *data, uint64_t data_length) 
+{
+	uint64_t read_index;
+	uint64_t write_index = 0;
+	uint8_t repeats;
+
+	if (NULL == data) {
+		printf("Invalid input.  data == NULL\n");
+		return data_length;
+	}
 	
+	for (read_index = 0; read_index < data_length; read_index += repeats) {
+		uint8_t read_value = data[read_index];
+		repeats = count_repeats(&data[read_index], data_length - read_index);
+
+		if (repeats > 1) 
+		{
+			// Signal the number of repeats by setting the REPEAT_FLAG
+			data[write_index++] = repeats | REPEAT_FLAG;
+		}
+		data[write_index++] = read_value;
+	}
+
+	return write_index;
+}
+
+uint8_t count_repeats(uint8_t *data, uint64_t data_length) 
+{
+	const uint8_t repeat_max_value = UINT8_MAX & ~REPEAT_FLAG;
+
+	uint8_t initial_value = data[0];
+	uint8_t i = 0;
+	while(data[i] == initial_value) {
+		if (i >= repeat_max_value) {
+			printf("Repeats of %#x exceeded max allowed, exiting at %u\n", initial_value, repeat_max_value);
+			return repeat_max_value;
+		}
+		i++;
+	}
+
+	printf("Counted %u repeats of %#x\n", i, initial_value);
+	return i;
+}
+
+void print_byte_array(uint8_t *data, uint64_t array_length)
+{
+	for (uint8_t i = 0; i < array_length; i++) {
+		if (i % 8 == 0) {
+			printf("\n");
+		}
+		printf("0x%02x ", data[i]);
+	}
+	printf("\n");
 }
