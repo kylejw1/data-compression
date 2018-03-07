@@ -62,6 +62,33 @@ uint64_t byte_compress(uint8_t *data, uint64_t data_length)
 	return write_index;
 }
 
+inline void big_memset(void *ptr, int value, uint64_t num) {
+	// In case the amount to copy is bigger than size_t can handle
+	while(num > 0) {
+		size_t amount = num > (uint64_t)SIZE_MAX ? SIZE_MAX : num;
+		memset(ptr, value, amount);
+		num -= amount;
+		ptr += amount * sizeof(uint8_t);
+	}
+}
+
+inline uint64_t decompress_next_value(uint8_t *source, uint8_t *destination) 
+{
+	uint8_t value = *source;
+	if (value & REPEAT_FLAG) 
+	{
+		if (NULL != destination) 
+		{
+			// Can't use memcpy as size_t may not be large enough
+			
+			big_memset(destination, )
+			*destination = value & (~REPEAT_FLAG);
+			destination++;
+		}
+
+	}
+}
+
 uint64_t byte_decompress(uint8_t *compressed_data_ptr, uint64_t compressed_data_length) 
 {
 	uint8_t *compressed_data = compressed_data_ptr;
@@ -72,7 +99,7 @@ uint64_t byte_decompress(uint8_t *compressed_data_ptr, uint64_t compressed_data_
 	uint64_t write_index = 0;
 	for(read_index=0; read_index < compressed_data_length; read_index++)
 	{
-		uint8_t value = compressed_data[i];
+		uint8_t value = compressed_data[read_index];
 
 		if (value & REPEAT_FLAG) 
 		{
