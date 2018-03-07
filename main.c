@@ -7,15 +7,16 @@
 // Invalid data
 
 #define REPEAT_FLAG 0x80
+#define READ_UINT64(data_ptr) (*data_ptr++ & 0xFF | *data_ptr++ << 8 | *data_ptr++ << 16)
 
 uint64_t byte_decompress(uint8_t *data, uint64_t data_length);
 uint64_t byte_compress(uint8_t *data, uint64_t data_length);
+uint64_t calculate_decompressed_length(uint8_t* compressed_data, uint64_t compressed_data_length);
 uint8_t count_repeats(uint8_t *data, uint64_t data_length);
 void print_byte_array(uint8_t *data, uint64_t array_length);
 
 int main() 
 {
-	uint8_t kyle;
 	uint8_t data[] = { 
 		0x03, 0x74, 0x04, 0x04, 0x04, 0x35, 0x35, 0x64,
 		0x64, 0x64, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -23,18 +24,16 @@ int main()
 	};
 	uint64_t data_length = sizeof(data) / sizeof(data[0]);
 
-	printf("Compressing data of length = %lu\n", data_length);
+	printf("Original length = %lu\n", data_length);
 	print_byte_array(data, data_length);
 
-	uint64_t new_length = byte_compress(data, data_length);
+	uint64_t compressed_length = byte_compress(data, data_length);
+	printf("Compressed length = %lu\n", compressed_length);
+	print_byte_array(data, compressed_length);
 
-	printf("New length = %lu\n", new_length);
-	print_byte_array(data, new_length);
-}
-
-uint64_t byte_decompress(uint8_t *data, uint64_t data_length) 
-{
-
+	uint64_t decompressed_length = byte_decompress(data, compressed_length);
+	printf("Decompressed length = %lu", decompressed_length);
+	print_byte_array(data, decompressed_length);
 }
 
 uint64_t byte_compress(uint8_t *data, uint64_t data_length) 
@@ -61,6 +60,60 @@ uint64_t byte_compress(uint8_t *data, uint64_t data_length)
 	}
 
 	return write_index;
+}
+
+uint64_t byte_decompress(uint8_t *compressed_data_ptr, uint64_t compressed_data_length) 
+{
+	uint8_t *compressed_data = compressed_data_ptr;
+	uint64_t decompressed_length = calculate_decompressed_length(compressed_data, compressed_data_length);
+	uint8_t *decompressed_data = (uint8_t*)malloc(decompressed_length);
+
+	uint64_t read_index;
+	uint64_t write_index = 0;
+	for(read_index=0; read_index < compressed_data_length; read_index++)
+	{
+		uint8_t value = compressed_data[i];
+
+		if (value & REPEAT_FLAG) 
+		{
+			// Remove the repeat flag from the value and add the number of 
+			// repeats to the calculated length
+			decompressed_length += value & (~REPEAT_FLAG);
+			i++;
+		} 
+		else 
+		{
+			// Value is not repeated
+			decompressed_length++;
+		}
+	}
+
+	return decompressed_length;
+}
+
+uint64_t calculate_decompressed_length(uint8_t* compressed_data, uint64_t compressed_data_length)
+{
+	uint64_t decompressed_length = 0;
+	uint64_t i;
+
+	for(i = 0; i < compressed_data_length; i++) {
+		uint8_t value = compressed_data[i];
+
+		if (value & REPEAT_FLAG) 
+		{
+			// Remove the repeat flag from the value and add the number of 
+			// repeats to the calculated length
+			decompressed_length += value & (~REPEAT_FLAG);
+			i++;
+		} 
+		else 
+		{
+			// Value is not repeated
+			decompressed_length++;
+		}
+	}
+
+	return decompressed_length;
 }
 
 uint8_t count_repeats(uint8_t *data, uint64_t data_length) 
