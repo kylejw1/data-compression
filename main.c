@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
+#include <stdlib.h>
 
 // Gotchas:
 // Output length bigger than input - buffer overflow
@@ -9,8 +11,9 @@
 #define REPEAT_FLAG 0x80
 #define READ_UINT64(data_ptr) (*data_ptr++ & 0xFF | *data_ptr++ << 8 | *data_ptr++ << 16)
 
-uint64_t byte_decompress(uint8_t *data, uint64_t data_length);
+uint64_t byte_decompress(uint8_t *compressed_data_ptr, uint64_t compressed_data_length, uint8_t **decompressed_data);
 uint64_t byte_compress(uint8_t *data, uint64_t data_length);
+static inline uint64_t decompress_next_value(uint8_t *source, uint8_t *destination);
 uint64_t calculate_decompressed_length(uint8_t* compressed_data, uint64_t compressed_data_length);
 uint8_t count_repeats(uint8_t *data, uint64_t data_length);
 void print_byte_array(uint8_t *data, uint64_t array_length);
@@ -31,9 +34,12 @@ int main()
 	printf("Compressed length = %lu\n", compressed_length);
 	print_byte_array(data, compressed_length);
 
-	uint64_t decompressed_length = byte_decompress(data, compressed_length);
+	uint8_t *decompressed_data;
+	uint64_t decompressed_length = byte_decompress(data, compressed_length, &decompressed_data);
 	printf("Decompressed length = %lu", decompressed_length);
-	print_byte_array(data, decompressed_length);
+	print_byte_array(decompressed_data, decompressed_length);
+
+	free(decompressed_data);
 }
 
 uint64_t byte_compress(uint8_t *data, uint64_t data_length) 
@@ -62,56 +68,64 @@ uint64_t byte_compress(uint8_t *data, uint64_t data_length)
 	return write_index;
 }
 
-inline void big_memset(void *ptr, int value, uint64_t num) {
+uint8_t count_repeats(uint8_t *data, uint64_t data_length) 
+{
+	const uint8_t repeat_max_value = UINT8_MAX & ~REPEAT_FLAG;
+
+	uint8_t initial_value = data[0];
+	uint8_t i = 0;
+	while(data[i] == initial_value) {
+		if (i >= repeat_max_value) {
+			printf("Repeats of %#x exceeded max allowed, exiting at %u\n", initial_value, repeat_max_value);
+			return repeat_max_value;
+		}
+		i++;
+	}
+
+	printf("Counted %u repeats of %#x\n", i, initial_value);
+	return i;
+}
+
+static inline void big_memset(uint8_t *ptr, int value, uint64_t num) {
 	// In case the amount to copy is bigger than size_t can handle
 	while(num > 0) {
 		size_t amount = num > (uint64_t)SIZE_MAX ? SIZE_MAX : num;
 		memset(ptr, value, amount);
 		num -= amount;
-		ptr += amount * sizeof(uint8_t);
+		ptr += amount;
 	}
 }
 
 inline uint64_t decompress_next_value(uint8_t *source, uint8_t *destination) 
 {
 	uint8_t value = *source;
-	if (value & REPEAT_FLAG) 
-	{
-		if (NULL != destination) 
-		{
-			// Can't use memcpy as size_t may not be large enough
-			
-			big_memset(destination, )
-			*destination = value & (~REPEAT_FLAG);
-			destination++;
-		}
+	uint64_t num_repeats = (value & REPEAT_FLAG) ? (value & (~REPEAT_FLAG)) : 1;
 
+	if (num_repeats == 1) {
+		*destination = value;
+	} else {
+		big_memset(destination, *(source+sizeof(uint8_t)), num_repeats);
 	}
+
+	return num_repeats;
 }
 
-uint64_t byte_decompress(uint8_t *compressed_data_ptr, uint64_t compressed_data_length) 
+uint64_t byte_decompress(uint8_t *compressed_data_ptr, uint64_t compressed_data_length, uint8_t **decompressed_data_ptr) 
 {
 	uint8_t *compressed_data = compressed_data_ptr;
 	uint64_t decompressed_length = calculate_decompressed_length(compressed_data, compressed_data_length);
-	uint8_t *decompressed_data = (uint8_t*)malloc(decompressed_length);
+	uint8_t *decompressed_data = (uint8_t*)malloc(decompressed_length * sizeof(uint8_t));
+	*decompressed_data_ptr = decompressed_data;
 
 	uint64_t read_index;
 	uint64_t write_index = 0;
 	for(read_index=0; read_index < compressed_data_length; read_index++)
 	{
-		uint8_t value = compressed_data[read_index];
-
-		if (value & REPEAT_FLAG) 
-		{
-			// Remove the repeat flag from the value and add the number of 
-			// repeats to the calculated length
-			decompressed_length += value & (~REPEAT_FLAG);
-			i++;
-		} 
-		else 
-		{
-			// Value is not repeated
-			decompressed_length++;
+		uint64_t bytes_written = decompress_next_value(compressed_data + read_index, decompressed_data + write_index);
+		write_index += bytes_written;
+		if (bytes_written > 1) {
+			// Extra increment to skip the repeat count byte
+			read_index++;
 		}
 	}
 
@@ -141,24 +155,6 @@ uint64_t calculate_decompressed_length(uint8_t* compressed_data, uint64_t compre
 	}
 
 	return decompressed_length;
-}
-
-uint8_t count_repeats(uint8_t *data, uint64_t data_length) 
-{
-	const uint8_t repeat_max_value = UINT8_MAX & ~REPEAT_FLAG;
-
-	uint8_t initial_value = data[0];
-	uint8_t i = 0;
-	while(data[i] == initial_value) {
-		if (i >= repeat_max_value) {
-			printf("Repeats of %#x exceeded max allowed, exiting at %u\n", initial_value, repeat_max_value);
-			return repeat_max_value;
-		}
-		i++;
-	}
-
-	printf("Counted %u repeats of %#x\n", i, initial_value);
-	return i;
 }
 
 void print_byte_array(uint8_t *data, uint64_t array_length)
