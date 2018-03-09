@@ -62,8 +62,8 @@ int main()
 }
 
 enum byte_compress_error_codes {
-	NULL_INPUT = -1000,
-	NON_REPEATED_BYTE_WITH_MSB,
+	NULL_INPUT = -1001,
+	NON_REPEATED_BYTE_WITH_MSB=-1000,
 };
 
 int64_t byte_compress(uint8_t *data_ptr, int64_t data_length) 
