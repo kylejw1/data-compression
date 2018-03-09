@@ -7,9 +7,9 @@
 #define debug_print(fmt, ...) \
             do { if (DEBUG) fprintf(stderr, fmt, __VA_ARGS__); } while (0)
 
-uint64_t byte_compress(uint8_t *data, uint64_t data_length);
-uint8_t count_repeats(uint8_t *data, uint64_t data_length);
-void print_byte_array(uint8_t *data, uint64_t array_length);
+int64_t byte_compress(uint8_t *data, int64_t data_length);
+uint8_t count_repeats(uint8_t *data, int64_t data_length);
+void print_byte_array(uint8_t *data, int64_t array_length);
 
 /*
 
@@ -26,17 +26,13 @@ off the MSB of each byte and packeing them together
 
 3. It would be more memory efficient to read and write directly to a file, which would also allow 
 compression of data sets larger than available RAM.  In a language with memory stream support this 
-solution could be generic and work with both file and memory equivalently.  
+solution could be generic and work with both file and memory equivalently.  This implementation can
+compress input data up to INT64_MAX bytes, or the memory limit, whichever is lower.
 
 4. Since the decompressed_length is not written to the buffer, a decompress function would have to 
 first iterate through the data set and calculate the final length in order to allocate a buffer.
 This could be avoided by appending the decompressed_length to the compressed data if the compressed data
 could be returned in a new buffer (to avoid possible buffer overflow)
-
-5. The provided stub for byte_compress does not have a specific error return.  In order to allow for 
-specific error types, either an error enum could be returned and compressed length set via pointer,
-or and integer type could be returned with negative numbers. However using negative numbers requires
-the return to be a signed integer, effectively cutting the max data length in half.
 
 */
 
@@ -48,39 +44,43 @@ int main()
 		0x56, 0x45, 0x56, 0x56, 0x56, 0x09, 0x09, 0x09 
 	};
 
-	uint64_t data_length = sizeof(data) / sizeof(data[0]);
+	int64_t data_length = sizeof(data) / sizeof(data[0]);
 
-	if (data_length == 0) {
-		printf("Nothing to compress.  Exiting");
-		return 0;
-	}
-
-	printf("Original length = %lu\n", data_length);
+	printf("Original length = %lld\n", data_length);
 	print_byte_array(data, data_length);
 
-	uint64_t compressed_length = byte_compress(data, data_length);
+	int64_t compressed_length = byte_compress(data, data_length);
 
-	if (compressed_length == 0) {
-		printf("Compression failed");
+	if (compressed_length < 0) {
+		printf("Compression failed.  Code: %lld", compressed_length);
 	} else {
-		printf("Compressed length = %lu\n", compressed_length);
+		printf("Compressed length = %lld\n", compressed_length);
 		print_byte_array(data, compressed_length);
 	}
 
 	return 0;
 }
 
-uint64_t byte_compress(uint8_t *data_ptr, uint64_t data_length) 
+enum byte_compress_error_codes {
+	NULL_INPUT = -1000,
+	NON_REPEATED_BYTE_WITH_MSB,
+};
+
+int64_t byte_compress(uint8_t *data_ptr, int64_t data_length) 
 {
-	uint64_t read_index;
-	uint64_t write_index = 0;
+	int64_t read_index;
+	int64_t write_index = 0;
 	uint8_t repeats;
 
 	if (NULL == data_ptr) {
 		printf("Invalid input.  data_ptr == NULL\n");
-		return 0;
+		return (int64_t)NULL_INPUT;
 	}
-	
+
+	if (data_length == 0) {
+		printf("Nothing to compress.  Exiting");
+		return data_length;
+	}
 	
 	for (read_index = 0; read_index < data_length; read_index += repeats) {
 		uint8_t value = data_ptr[read_index];
@@ -96,7 +96,7 @@ uint64_t byte_compress(uint8_t *data_ptr, uint64_t data_length)
 			
 			if (repeats == 1) {
 				printf("ERROR: Non-repeated byte has MSB set.  Cannot continue.");
-				return 0;
+				return (int64_t)NON_REPEATED_BYTE_WITH_MSB;
 			}
 		}
 
@@ -111,7 +111,7 @@ uint64_t byte_compress(uint8_t *data_ptr, uint64_t data_length)
 	return write_index;
 }
 
-uint8_t count_repeats(uint8_t *data_ptr, uint64_t data_length) 
+uint8_t count_repeats(uint8_t *data_ptr, int64_t data_length) 
 {
 	static const uint8_t repeat_max_value = UINT8_MAX & ~REPEAT_FLAG;
 
@@ -131,7 +131,7 @@ uint8_t count_repeats(uint8_t *data_ptr, uint64_t data_length)
 	return i;
 }
 
-void print_byte_array(uint8_t *data, uint64_t array_length)
+void print_byte_array(uint8_t *data, int64_t array_length)
 {
 	for (uint8_t i = 0; i < array_length; i++) {
 		if (i % 8 == 0) {
