@@ -4,12 +4,11 @@
 #include <stdlib.h>
 
 // Gotchas:
-// Output length bigger than input - buffer overflow
 // sorted Linked list for duplicate data?
 // Invalid data
+// WARN ON REPEAT FLAG SET
 
 #define REPEAT_FLAG 0x80
-#define READ_UINT64(data_ptr) (*data_ptr++ & 0xFF | *data_ptr++ << 8 | *data_ptr++ << 16)
 
 uint64_t byte_decompress(uint8_t *compressed_data_ptr, uint64_t compressed_data_length, uint8_t **decompressed_data);
 uint64_t byte_compress(uint8_t *data, uint64_t data_length);
@@ -20,26 +19,45 @@ void print_byte_array(uint8_t *data, uint64_t array_length);
 
 int main() 
 {
-	uint8_t data[] = { 
-		0x03, 0x74, 0x04, 0x04, 0x04, 0x35, 0x35, 0x64,
-		0x64, 0x64, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x56, 0x45, 0x56, 0x56, 0x56, 0x09, 0x09, 0x09 
-	};
-	uint64_t data_length = sizeof(data) / sizeof(data[0]);
+	// uint8_t data[] = { 
+	// 	0x03, 0x74, 0x04, 0x04, 0x04, 0x35, 0x35, 0x64,
+	// 	0x64, 0x64, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00,
+	// 	0x56, 0x45, 0x56, 0x56, 0x56, 0x09, 0x09, 0x09 
+	// };
+	uint8_t *data;
+
+	FILE *fileptr;
+	FILE *dest;
+	size_t filelen;
+
+	fileptr = fopen("kyle.ts", "rb");  // Open the file in binary mode
+	fseek(fileptr, 0, SEEK_END);          // Jump to the end of the file
+	filelen = (size_t)ftell(fileptr);             // Get the current byte offset in the file
+	rewind(fileptr);                      // Jump back to the beginning of the file
+
+	data = (uint8_t *)malloc(filelen*sizeof(uint8_t)); // Enough memory for file + \0
+	fread(data, sizeof(uint8_t), filelen, fileptr); // Read in the entire file
+	fclose(fileptr); // Close the file
+
+	uint64_t data_length = filelen / sizeof(data[0]);
 
 	printf("Original length = %lu\n", data_length);
-	print_byte_array(data, data_length);
+	// print_byte_array(data, data_length);
 
 	uint64_t compressed_length = byte_compress(data, data_length);
 	printf("Compressed length = %lu\n", compressed_length);
-	print_byte_array(data, compressed_length);
+	// print_byte_array(data, compressed_length);
 
 	uint8_t *decompressed_data;
 	uint64_t decompressed_length = byte_decompress(data, compressed_length, &decompressed_data);
 	printf("Decompressed length = %lu", decompressed_length);
-	print_byte_array(decompressed_data, decompressed_length);
+	// print_byte_array(decompressed_data, decompressed_length);
 
 	free(decompressed_data);
+	free(data);
+	dest = fopen("kyle2.ts", "w+");
+	fwrite(decompressed_data, sizeof(uint8_t), decompressed_length, dest);
+	fclose(dest);
 }
 
 uint64_t byte_compress(uint8_t *data, uint64_t data_length) 
