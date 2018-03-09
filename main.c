@@ -50,7 +50,7 @@ int main()
 
 	uint64_t compressed_length = byte_compress(data, data_length);
 
-	if (compressed_length < 0) {
+	if (compressed_length == 0) {
 		printf("Compression failed");
 	} else {
 		printf("Compressed length = %lu\n", compressed_length);
@@ -66,7 +66,7 @@ uint64_t byte_compress(uint8_t *data_ptr, uint64_t data_length)
 
 	if (NULL == data_ptr) {
 		printf("Invalid input.  data_ptr == NULL\n");
-		return -1;
+		return 0;
 	}
 	
 	for (read_index = 0; read_index < data_length; read_index += repeats) {
@@ -83,7 +83,7 @@ uint64_t byte_compress(uint8_t *data_ptr, uint64_t data_length)
 			
 			if (repeats == 1) {
 				printf("ERROR: Non-repeated byte has MSB set.  Cannot continue.");
-				return -1;
+				return 0;
 			}
 		}
 
