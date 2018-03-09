@@ -33,6 +33,11 @@ first iterate through the data set and calculate the final length in order to al
 This could be avoided by appending the decompressed_length to the compressed data if the compressed data
 could be returned in a new buffer (to avoid possible buffer overflow)
 
+5. The provided stub for byte_compress does not have a specific error return.  In order to allow for 
+specific error types, either an error enum could be returned and compressed length set via pointer,
+or and integer type could be returned with negative numbers. However using negative numbers requires
+the return to be a signed integer, effectively cutting the max data length in half.
+
 */
 
 int main() 
