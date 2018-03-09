@@ -74,6 +74,7 @@ uint64_t byte_compress(uint8_t *data_ptr, uint64_t data_length)
 	if (NULL == data_ptr) {
 		printf("Invalid input.  data_ptr == NULL\n");
 		return 0;
+	}
 	
 	
 	for (read_index = 0; read_index < data_length; read_index += repeats) {
