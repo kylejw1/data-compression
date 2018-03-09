@@ -45,11 +45,6 @@ int main()
 
 	uint64_t data_length = sizeof(data) / sizeof(data[0]);
 
-	if (data_length == 0) {
-		printf("Nothing to compress.  Exiting");
-		return 0;
-	}
-
 	printf("Original length = %lu\n", data_length);
 	print_byte_array(data, data_length);
 
@@ -61,8 +56,6 @@ int main()
 		printf("Compressed length = %lu\n", compressed_length);
 		print_byte_array(data, compressed_length);
 	}
-
-	return 0;
 }
 
 uint64_t byte_compress(uint8_t *data_ptr, uint64_t data_length) 
@@ -74,7 +67,7 @@ uint64_t byte_compress(uint8_t *data_ptr, uint64_t data_length)
 	if (NULL == data_ptr) {
 		printf("Invalid input.  data_ptr == NULL\n");
 		return 0;
-	
+	}
 	
 	for (read_index = 0; read_index < data_length; read_index += repeats) {
 		uint8_t value = data_ptr[read_index];
